@@ -47,12 +47,15 @@ jobs:
               @{Name="Bật Remote Desktop"; Script={ 
                   Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
               }},
-              @{Name="Tắt xác thực mạng"; Script={
-                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+              @{Name="Bật xác thực mạng NLA và bảo mật RDP"; Script={
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 -Force
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 2 -Force
               }},
-              @{Name="Cấu hình bảo mật RDP"; Script={
-                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
-                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+              @{Name="Cho phép chuyển hướng mic và âm thanh RDP"; Script={
+                  $policyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+                  New-Item -Path $policyPath -Force | Out-Null
+                  Set-ItemProperty -Path $policyPath -Name 'fDisableAudioCapture' -Value 0 -Type DWord -Force
+                  Set-ItemProperty -Path $policyPath -Name 'fDisableAudio' -Value 0 -Type DWord -Force
               }},
               @{Name="Mở port 3389 firewall"; Script={
                   netsh advfirewall firewall add rule name="RDP-Premium" dir=in action=allow protocol=TCP localport=3389 profile=any
@@ -85,27 +88,21 @@ jobs:
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN PREMIUM" -ForegroundColor Yellow
           
-          # Hàm tạo password ngắn (8 ký tự) đảm bảo có ít nhất 1 chữ hoa, 1 chữ thường, 1 số
+          # Tạo mật khẩu 8 ký tự dễ đọc, gồm chữ hoa, chữ thường và số
           function New-PremiumPassword {
-              param()
-              $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'   # loại I,O để tránh nhầm
+              $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
               $lower = 'abcdefghijkmnpqrstuvwxyz'
-              $numbers = '23456789'               # loại 0,1 để tránh nhầm
+              $numbers = '23456789'
               $all = $upper + $lower + $numbers
-
-              # đảm bảo 1 chữ hoa, 1 chữ thường, 1 chữ số
-              $pw = ''
-              $pw += $upper[(Get-Random -Minimum 0 -Maximum $upper.Length)]
-              $pw += $lower[(Get-Random -Minimum 0 -Maximum $lower.Length)]
-              $pw += $numbers[(Get-Random -Minimum 0 -Maximum $numbers.Length)]
-
-              # thêm ký tự ngẫu nhiên để đủ 8 ký tự
-              for ($i = 1; $i -le 5; $i++) {
+              $pw = @(
+                  $upper[(Get-Random -Minimum 0 -Maximum $upper.Length)]
+                  $lower[(Get-Random -Minimum 0 -Maximum $lower.Length)]
+                  $numbers[(Get-Random -Minimum 0 -Maximum $numbers.Length)]
+              )
+              for ($i = 0; $i -lt 5; $i++) {
                   $pw += $all[(Get-Random -Minimum 0 -Maximum $all.Length)]
               }
-
-              # trộn ngẫu nhiên vị trí các ký tự rồi trả về
-              return -join ($pw.ToCharArray() | Sort-Object { Get-Random })
+              return -join ($pw | Sort-Object { Get-Random })
           }
 
           # Nếu người dùng đặt mật khẩu tùy chỉnh (ví dụ bằng secret) thì ưu tiên dùng
@@ -406,4 +403,12 @@ jobs:
           )
           
           foreach($step in $cleanupSteps) {
-              Write-Host "│ 🗑️  $($step.Name
+              Write-Host "│ 🗑️  $($step.Name)..." -NoNewline -ForegroundColor White
+              try {
+                  & $step.Script
+                  Write-Host "`r│ ✅ $($step.Name)" -ForegroundColor Green
+              } catch {
+                  Write-Host "`r│ ⚠️  $($step.Name) - bỏ qua lỗi" -ForegroundColor Yellow
+              }
+          }
+          Write-Host "🧹 Dọn dẹp hoàn tất!" -ForegroundColor Green
