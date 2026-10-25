@@ -1,4 +1,4 @@
-name: 🚀 SEVER AI STV PREMIUM
+name: 🚀 SEVER AI STV PREMIUM - MIC FIX
 
 on:
   workflow_dispatch:
@@ -97,33 +97,11 @@ jobs:
           Write-Host ""
           Write-Host "👤 ĐANG TẠO TÀI KHOẢN PREMIUM" -ForegroundColor Yellow
           
-          # Tạo mật khẩu 8 ký tự dễ đọc, gồm chữ hoa, chữ thường và số
-          function New-PremiumPassword {
-              $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
-              $lower = 'abcdefghijkmnpqrstuvwxyz'
-              $numbers = '23456789'
-              $all = $upper + $lower + $numbers
-              $pw = @(
-                  $upper[(Get-Random -Minimum 0 -Maximum $upper.Length)]
-                  $lower[(Get-Random -Minimum 0 -Maximum $lower.Length)]
-                  $numbers[(Get-Random -Minimum 0 -Maximum $numbers.Length)]
-              )
-              for ($i = 0; $i -lt 5; $i++) {
-                  $pw += $all[(Get-Random -Minimum 0 -Maximum $all.Length)]
-              }
-              return -join ($pw | Sort-Object { Get-Random })
-          }
-
-          # Nếu người dùng đặt mật khẩu tùy chỉnh (ví dụ bằng secret) thì ưu tiên dùng
-          if ($env:CUSTOM_RDP_PASS) {
-              $matKhau = $env:CUSTOM_RDP_PASS
-              Write-Host "│ ℹ️  Dùng mật khẩu tùy chỉnh từ env" -ForegroundColor Blue
-          } else {
-              $matKhau = New-PremiumPassword
-          }
-
-          # Ẩn mật khẩu khỏi log GitHub Actions
+          # Mật khẩu cố định theo yêu cầu của người dùng.
+          # Lưu ý: mật khẩu yếu; chỉ dùng trong phiên thử nghiệm riêng tư.
+          $matKhau = 'baominhdev'
           Write-Output "::add-mask::$matKhau"
+
           $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
           
           # Xóa user cũ nếu tồn tại
