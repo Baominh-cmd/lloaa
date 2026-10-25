@@ -54,8 +54,17 @@ jobs:
               @{Name="Cho phép chuyển hướng mic và âm thanh RDP"; Script={
                   $policyPath = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
                   New-Item -Path $policyPath -Force | Out-Null
-                  Set-ItemProperty -Path $policyPath -Name 'fDisableAudioCapture' -Value 0 -Type DWord -Force
-                  Set-ItemProperty -Path $policyPath -Name 'fDisableAudio' -Value 0 -Type DWord -Force
+                  New-ItemProperty -Path $policyPath -Name 'fDisableAudioCapture' -PropertyType DWord -Value 0 -Force | Out-Null
+                  New-ItemProperty -Path $policyPath -Name 'fDisableAudio' -PropertyType DWord -Value 0 -Force | Out-Null
+                  # Khởi động các dịch vụ âm thanh nếu image Windows có cung cấp
+                  foreach ($svc in @('AudioEndpointBuilder','Audiosrv','UmRdpService')) {
+                      $service = Get-Service -Name $svc -ErrorAction SilentlyContinue
+                      if ($service) {
+                          Set-Service -Name $svc -StartupType Manual -ErrorAction SilentlyContinue
+                          Start-Service -Name $svc -ErrorAction SilentlyContinue
+                      }
+                  }
+                  Write-Host "Đã bật chính sách chuyển hướng mic/âm thanh; cần bật audiocapturemode trên máy khách RDP."
               }},
               @{Name="Mở port 3389 firewall"; Script={
                   netsh advfirewall firewall add rule name="RDP-Premium" dir=in action=allow protocol=TCP localport=3389 profile=any
@@ -113,6 +122,8 @@ jobs:
               $matKhau = New-PremiumPassword
           }
 
+          # Ẩn mật khẩu khỏi log GitHub Actions
+          Write-Output "::add-mask::$matKhau"
           $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
           
           # Xóa user cũ nếu tồn tại
@@ -279,7 +290,7 @@ jobs:
           Write-Host "├───────────────────────────────────────────┤" -ForegroundColor Cyan
           Write-Host "│ 🌐  Địa chỉ: $env:TAILSCALE_IP" -ForegroundColor White
           Write-Host "│ 👤  Tài khoản: MINKSUN-CLOUD" -ForegroundColor White
-          Write-Host "│ 🔐  Mật khẩu: $matKhau" -ForegroundColor White
+          Write-Host "│ 🔐  Mật khẩu: đã được ẩn trong log; dùng mật khẩu đã lưu an toàn của bạn" -ForegroundColor White
           Write-Host "│ ⏰  Thời lượng: $displayTime" -ForegroundColor White
           Write-Host "│ 🕐  Bắt đầu: $($thoiGianBatDau.ToString('HH:mm:ss'))" -ForegroundColor White
           Write-Host "│ 🕐  Kết thúc: $($thoiGianKetThuc.ToString('HH:mm:ss'))" -ForegroundColor White
